@@ -1,38 +1,54 @@
+// server.js
+
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-
+const connectDB = require('../db');
+const FileModel = require('../model/FileModel');
+const cors = require("cors")
 const app = express();
 
-// Set storage engine for multer
+// Enable Cors
+app.use(cors());
+
+
+
+// Connect to MongoDB
+connectDB();
+
+// Set up Multer for file uploads
 const storage = multer.diskStorage({
-  destination: './uploads',
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
   filename: function (req, file, cb) {
-    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
+    cb(null, file.originalname);
+  },
+});
+
+const upload = multer({ storage });
+
+// Define an API route for file upload
+app.post('/api/upload', upload.single('file'), async (req, res) => {
+  try {
+    const { filename, path } = req.file;
+
+    // Create a new document using the FileModel
+    const file = new FileModel({
+      filename,
+      filepath: path,
+    });
+
+    // Save the file document to the database
+    await file.save();
+
+    res.status(200).json({ message: 'File uploaded successfully' });
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    res.status(500).json({ error: 'An error occurred during file upload' });
   }
 });
 
-// Initialize multer upload
-const upload = multer({
-  storage: storage
-}).single('file');
-
-// Handle file upload
-app.post('/upload', (req, res) => {
-  upload(req, res, (err) => {
-    if (err) {
-      // Handle upload error
-      console.error('Error uploading file:', err);
-      res.status(500).json({ error: 'Failed to upload file' });
-    } else {
-      // File uploaded successfully
-      res.json({ message: 'File uploaded successfully' });
-    }
-  });
-});
-
 // Start the server
-const port = 3000;
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+app.listen(4000, () => {
+  console.log('Server is running on port 4000');
 });
